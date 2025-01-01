@@ -4,10 +4,10 @@ Cette application mobile Flutter communique avec un module ESP32 via WiFi pour s
 
 ## Captures d'écran
 
-![Écran principal](assets/home_screen.png)
+![Écran principal](assets/home_screen.PNG)
 *Interface principale montrant les lectures de gaz en temps réel*
 
-![Écran de configuration](assets/settings_screen.png)
+![Écran de configuration](assets/settings_screen.PNG)
 *Interface de configuration pour la connexion à l'ESP32*
 
 ## Configuration requise
