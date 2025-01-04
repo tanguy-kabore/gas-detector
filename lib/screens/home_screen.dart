@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../models/gas_reading.dart';
 import '../services/wifi_service.dart';
 import 'settings_screen.dart';
+import '../services/notification_service.dart'; // Ajout de l'importation du service de notification
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -15,6 +16,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final WifiService _wifiService = WifiService();
   final List<GasReading> _readings = [];
   bool _isConnected = false;
+  final NotificationService _notificationService = NotificationService(); // Ajout de l'instance du service de notification
+  double _currentGasLevel = 0;
+  bool _isAlertActive = false;
 
   @override
   void initState() {
@@ -26,12 +30,27 @@ class _HomeScreenState extends State<HomeScreen> {
           _readings.removeAt(0);
         }
         _isConnected = true;
+        _checkGasLevel(reading.value); // Appel de la méthode pour vérifier le niveau de gaz
       });
     });
   }
 
   void _updateIpAddress(String ip) {
     _wifiService.setEsp32IpAddress(ip);
+  }
+
+  void _checkGasLevel(double gasLevel) {
+    setState(() {
+      _currentGasLevel = gasLevel;
+      
+      // Vérifier si le niveau de gaz dépasse 200 ppm
+      if (gasLevel >= 200 && !_isAlertActive) {
+        _isAlertActive = true;
+        _notificationService.showGasAlert(gasLevel);
+      } else if (gasLevel < 200) {
+        _isAlertActive = false;
+      }
+    });
   }
 
   @override
