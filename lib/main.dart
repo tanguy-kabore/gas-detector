@@ -1,15 +1,30 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'package:provider/provider.dart';
+import 'services/auth_service.dart';
+import 'services/gas_service.dart';
 import 'services/notification_service.dart';
+import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/settings_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialiser le service de notification
-  final notificationService = NotificationService();
-  await notificationService.initialize();
 
-  runApp(const MyApp());
+  final notificationService = NotificationService();
+  await notificationService.initializeNotifications();
+
+  final gasService = GasService(notificationService);
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => gasService),
+        ChangeNotifierProvider(create: (_) => notificationService),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -19,19 +34,20 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Détecteur de Gaz',
-      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 2,
-        ),
       ),
-      home: const HomeScreen(),
+      routes: {
+        '/': (context) => const LoginScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/settings': (context) => SettingsScreen(
+              onIpSaved: (String ip) {
+                final gasService = context.read<GasService>();
+                gasService.setIpAddress(ip);
+              },
+            ),
+      },
     );
   }
 }

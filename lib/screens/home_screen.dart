@@ -1,56 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import '../models/gas_reading.dart';
-import '../services/wifi_service.dart';
+import 'package:provider/provider.dart';
+import '../services/gas_service.dart';
+import '../services/notification_service.dart';
 import 'settings_screen.dart';
-import '../services/notification_service.dart'; // Ajout de l'importation du service de notification
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final WifiService _wifiService = WifiService();
-  final List<GasReading> _readings = [];
-  bool _isConnected = false;
-  final NotificationService _notificationService = NotificationService(); // Ajout de l'instance du service de notification
-  double _currentGasLevel = 0;
+  final NotificationService _notificationService = NotificationService();
   bool _isAlertActive = false;
+  int _criticalLevel = 500;
 
   @override
   void initState() {
     super.initState();
-    _wifiService.gasReadings.listen((reading) {
-      setState(() {
-        _readings.add(reading);
-        if (_readings.length > 50) {
-          _readings.removeAt(0);
-        }
-        _isConnected = true;
-        _checkGasLevel(reading.value); // Appel de la méthode pour vérifier le niveau de gaz
-      });
-    });
+    final gasService = Provider.of<GasService>(context, listen: false);
+    _criticalLevel = gasService.criticalLevel;
+    gasService.startMonitoring();
   }
 
-  void _updateIpAddress(String ip) {
-    _wifiService.setEsp32IpAddress(ip);
+  @override
+  void dispose() {
+    final gasService = Provider.of<GasService>(context, listen: false);
+    gasService.stopMonitoring();
+    super.dispose();
   }
 
-  void _checkGasLevel(double gasLevel) {
-    setState(() {
-      _currentGasLevel = gasLevel;
-      
-      // Vérifier si le niveau de gaz dépasse 200 ppm
-      if (gasLevel >= 200 && !_isAlertActive) {
-        _isAlertActive = true;
-        _notificationService.showGasAlert(gasLevel);
-      } else if (gasLevel < 200) {
-        _isAlertActive = false;
-      }
-    });
+  Future<void> _handleGasLevelChange(double gasLevel) async {
+    if (gasLevel >= _criticalLevel && !_isAlertActive) {
+      _isAlertActive = true;
+      await _notificationService.showGasAlert(
+        'CO2',
+        gasLevel,
+        _criticalLevel,
+      );
+    } else if (gasLevel < _criticalLevel) {
+      _isAlertActive = false;
+    }
   }
 
   @override
@@ -66,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => SettingsScreen(
-                    onIpSaved: _updateIpAddress,
+                    onIpSaved: (ip) {},
                   ),
                 ),
               );
@@ -74,107 +65,41 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildConnectionStatus(),
-          _buildCurrentReading(),
-          Expanded(
-            child: _buildChart(),
-          ),
-        ],
+      body: Consumer<GasService>(
+        builder: (context, gasService, child) {
+          // Utiliser addPostFrameCallback pour éviter setState pendant le build
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _handleGasLevelChange(gasService.gasLevel);
+          });
+          
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Niveau de CO2',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  '${gasService.gasLevel.toStringAsFixed(1)} ppm',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: gasService.gasLevel >= _criticalLevel
+                        ? Colors.red
+                        : Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                Text(
+                  'Niveau critique: $_criticalLevel ppm',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
-  }
-
-  Widget _buildConnectionStatus() {
-    return Container(
-      padding: const EdgeInsets.all(8.0),
-      color: _isConnected ? Colors.green : Colors.red,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _isConnected ? Icons.check_circle : Icons.error,
-            color: Colors.white,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _isConnected ? 'Connecté' : 'Déconnecté',
-            style: const TextStyle(color: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrentReading() {
-    final latestReading = _readings.isNotEmpty ? _readings.last.value : 0.0;
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          const Text(
-            'Niveau de gaz actuel',
-            style: TextStyle(fontSize: 20),
-          ),
-          Text(
-            '${latestReading.toStringAsFixed(2)} ppm',
-            style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChart() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(show: true),
-          titlesData: FlTitlesData(
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 40,
-              ),
-            ),
-            topTitles: AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          borderData: FlBorderData(show: true),
-          lineBarsData: [
-            LineChartBarData(
-              spots: _readings.asMap().entries.map((entry) {
-                return FlSpot(
-                  entry.key.toDouble(),
-                  entry.value.value,
-                );
-              }).toList(),
-              isCurved: true,
-              color: Colors.blue,
-              barWidth: 3,
-              dotData: FlDotData(show: false),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _wifiService.dispose();
-    super.dispose();
   }
 }

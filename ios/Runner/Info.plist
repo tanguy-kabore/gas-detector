@@ -45,5 +45,24 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Cette application nécessite l'accès au microphone pour les alertes sonores</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Cette application nécessite l'accès à la caméra pour scanner les QR codes</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cette application nécessite l'accès aux photos pour sauvegarder les graphiques</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Cette application nécessite l'accès à la localisation pour le Bluetooth</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Cette application nécessite l'accès à la localisation en arrière-plan pour le Bluetooth</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Cette application nécessite l'accès au Bluetooth pour se connecter au détecteur</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Cette application nécessite l'accès au Bluetooth pour se connecter au détecteur</string>
 </dict>
 </plist>
